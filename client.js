@@ -2,6 +2,7 @@ var socket;
 var nick;
 var name;
 var allUsers = [];
+var offlineUsers = [];
 var keypressTimeout;
 var textInput = document.getElementById("messageToSent");
 var typingStatus = document.getElementById("typing_status");
@@ -25,7 +26,9 @@ function handleMessage(message) {
 function updateUsersList() {
     document.getElementById('usersList').innerHTML = '';
     allUsers.forEach(user => {
-        addUser(user.name, user.nick, "online")
+        var status = "online"
+        if (offlineUsers.includes(user.nick)) { status = "OFFLINE :(  :(  :(" }
+        addUser(user.name, user.nick, status)
     })
 };
 
@@ -51,7 +54,7 @@ function initSockets() {
 
         document.getElementsByClassName(nick)[0].innerHTML = 'jast left';
         setTimeout(() => {
-            document.getElementsByClassName(nick)[0].innerHTML = 'offline';
+            document.getElementsByClassName(nick)[0].innerHTML = 'OFFLINE :(  :(  :(';
         }, 60000)
         console.log("user disconected" + nick)
     });
@@ -73,6 +76,10 @@ function initSockets() {
 
     socket.on('stop:typing', function (data) {
         typingStatus.innerHTML = "";
+    });
+
+    socket.on('offlineUsersList', function (data) {
+        offlineUsers = data.offlineUsers;
     });
 }
 

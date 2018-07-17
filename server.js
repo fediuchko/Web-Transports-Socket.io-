@@ -1,45 +1,48 @@
 var express = require('express')
 var app = express()
-var http =  require ('http').Server(app);
+var http = require('http').Server(app);
 
-var io = require ('socket.io')(http);
-  
+var io = require('socket.io')(http);
+
 
 var messages = getArrayWithLimitedLength(100);
-var usersState =new Map();
-// app.use(express.static(path.join(__dirname, 'public')));
-app.get('/', function(req,res) {
+var usersState = new Map();
+var offlineUsers = [];
+app.get('/', function (req, res) {
     res.sendFile(__dirname + '/index.html');
 });
 
-app.get('/client.js', function(req,res) {
+app.get('/client.js', function (req, res) {
     res.sendFile(__dirname + '/client.js');
 });
 
 io.on('connection', function (socket) {
-    console.log('client connected') ;
+    console.log('client connected');
 
-    socket.on('chat message', function(msg){
+    socket.on('chat message', function (msg) {
         messages.push(msg);
-        io.emit('chat message', msg);    
+        io.emit('chat message', msg);
     });
-
+    socket.broadcast.emit('offlineUsersList', {offlineUsers: offlineUsers});
     socket.emit('chat history', messages);
-   
-    socket.on('login', function(data){
+
+    socket.on('login', function (data) {
         console.log('a user ' + data.userNick + ' connected');
-        console.log('socket.id  ' +socket.id);
+        console.log('socket.id  ' + socket.id);
         socket.broadcast.emit('user conected', data.userNick);
         usersState.set(socket.id, data.userNick);
+
+    });
+   
+    socket.on('disconnect', function () {
+        console.log(' disconnect socket.id  ' + socket.id);
+        console.log('user ' + usersState.get(socket.id) + ' disconnected');
+        let nick = usersState.get(socket.id);
+        offlineUsers.push(nick);
+        socket.broadcast.emit('user disconected', nick);
+        socket.broadcast.emit('offlineUsersList', {offlineUsers: offlineUsers})
     });
 
-    socket.on('disconnect', function(){
-        console.log(' disconnect socket.id  ' +socket.id);
-        console.log('user ' + usersState.get(socket.id) + ' disconnected');'user disconected'
-        socket.broadcast.emit('user disconected', usersState.get(socket.id));
-        //todo send to all users info that this current user has left a chat socket.emmit()
-    });
-       
     socket.on('typing', (data) => {
         socket.broadcast.emit('start:typing', {
             userNick: data.userNick
@@ -51,31 +54,7 @@ io.on('connection', function (socket) {
             userNick: data.userNick
         });
     });
-    //  socket.on('typing', function (data) {
 
-    //      if (data.userNick && data.message) {
-
-    //        $('.typing').html("User: " + data.userNick + ' ' + data.message);
-
-    //      } else {
-
-    //        $('.typing').html("");
-
-    //     }
-
-    //      });
-
-    //     var typing = false;
-
-    //       var timeout = undefined;
-
-    //        function timeoutFunction(){
-
-    //      typing = false;
-
-    //        socket.emit(noLongerTypingMessage);
-
-    //        }  
 });
 
 function getArrayWithLimitedLength(length) {
@@ -85,7 +64,7 @@ function getArrayWithLimitedLength(length) {
         if (this.length >= length) {
             this.shift();
         }
-        return Array.prototype.push.apply(this,arguments);
+        return Array.prototype.push.apply(this, arguments);
     }
 
     return array;
@@ -93,6 +72,6 @@ function getArrayWithLimitedLength(length) {
 }
 
 
-http.listen(5000, function(){
+http.listen(5000, function () {
     console.log('listening on :5000')
 });
